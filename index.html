@@ -269,6 +269,10 @@
   let lastRotateY = 0;
   let scale = 1;
 
+  // Biến lưu góc gốc cập nhật khi auto-center hoàn thành
+  let baseRotateX = 0;
+  let baseRotateY = 0;
+
   // Xử lý chuột trên PC
   function updateFromMouse(x, y) {
     const centerX = window.innerWidth / 2;
@@ -288,37 +292,42 @@
     const rotateX = deltaY * 25;
     const rotateY = deltaX * -25;
     document.getElementById('tilt-container').style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
-}
-let idleTimeout = null;
+  }
 
-function startAutoCentering() {
-  if (idleTimeout) clearInterval(idleTimeout);
+  let idleTimeout = null;
 
-  idleTimeout = setInterval(() => {
-    // Giảm dần góc nghiêng mỗi frame về 0
-    lastRotateX *= 0.9;
-    lastRotateY *= 0.9;
+  function startAutoCentering() {
+    if (idleTimeout) clearInterval(idleTimeout);
 
-    // Nếu gần bằng 0 thì dừng hẳn
-    if (Math.abs(lastRotateX) < 0.1 && Math.abs(lastRotateY) < 0.1) {
-      lastRotateX = 0;
-      lastRotateY = 0;
+    idleTimeout = setInterval(() => {
+      // Giảm dần góc nghiêng mỗi frame về 0
+      lastRotateX *= 0.9;
+      lastRotateY *= 0.9;
+
+      // Nếu gần bằng 0 thì cập nhật baseRotate và dừng hẳn
+      if (Math.abs(lastRotateX) < 0.1 && Math.abs(lastRotateY) < 0.1) {
+        // Cập nhật góc gốc baseRotate để lần sau tính từ vị trí này
+        baseRotateX += lastRotateX;
+        baseRotateY += lastRotateY;
+
+        lastRotateX = 0;
+        lastRotateY = 0;
+        clearInterval(idleTimeout);
+        idleTimeout = null;
+      }
+
+      applyTransform(lastRotateX, lastRotateY, scale);
+    }, 30); // 30ms mỗi bước mượt mà
+  }
+
+  function resetIdleTimer() {
+    if (idleTimeout) {
       clearInterval(idleTimeout);
       idleTimeout = null;
     }
-
-    applyTransform(lastRotateX, lastRotateY, scale);
-  }, 30); // 30ms mỗi bước mượt mà
-}
-
-function resetIdleTimer() {
-  if (idleTimeout) {
-    clearInterval(idleTimeout);
-    idleTimeout = null;
+    // Sau 2 giây không hoạt động -> bắt đầu hồi tâm
+    setTimeout(startAutoCentering, 2000);
   }
-  // Sau 2 giây không hoạt động -> bắt đầu hồi tâm
-  setTimeout(startAutoCentering, 2000);
-}
 
   document.addEventListener('mousemove', (e) => {
     updateFromMouse(e.clientX, e.clientY);
@@ -345,6 +354,10 @@ function resetIdleTimer() {
 
     rotateX *= 0.8;
     rotateY *= -0.8;
+
+    // Trừ đi góc gốc baseRotate để tính góc từ vị trí mới
+    rotateX -= baseRotateX;
+    rotateY -= baseRotateY;
 
     lastRotateX = rotateX;
     lastRotateY = rotateY;
@@ -413,5 +426,6 @@ function resetIdleTimer() {
     }
   }, { passive: false });
 </script>
+
 </body>
 </html>
