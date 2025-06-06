@@ -260,67 +260,117 @@
     });
   </script>
   <script>
-    const container = document.getElementById('tilt-container');
-    function applyTransform(rotateX, rotateY, scale = 1) {
-      container.style.transform = `scale(${scale}) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+  const container = document.getElementById('tilt-container');
+
+  function applyTransform(rotateX, rotateY, scale = 1) {
+    container.style.transform = `scale(${scale}) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+  }
+
+  let lastRotateX = 0;
+  let lastRotateY = 0;
+  let scale = 1;
+
+  // Xử lý chuột trên PC
+  function updateFromMouse(x, y) {
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const deltaX = (x - centerX) / centerX;
+    const deltaY = (y - centerY) / centerY;
+    lastRotateX = deltaY * 25;
+    lastRotateY = deltaX * -25;
+    applyTransform(lastRotateX, lastRotateY, scale);
+  }
+
+  document.addEventListener('mousemove', (e) => {
+    updateFromMouse(e.clientX, e.clientY);
+  });
+
+  // Zoom bằng chuột cuộn
+  document.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = -e.deltaY;
+    const zoomSpeed = 0.001;
+    scale += delta * zoomSpeed;
+    scale = Math.min(Math.max(0.5, scale), 2);
+    applyTransform(lastRotateX, lastRotateY, scale);
+  }, { passive: false });
+
+  // Nghiêng điện thoại
+  window.addEventListener('deviceorientation', (event) => {
+    let rotateX = event.beta || 0;
+    let rotateY = event.gamma || 0;
+
+    rotateX = Math.min(Math.max(rotateX, -30), 30);
+    rotateY = Math.min(Math.max(rotateY, -30), 30);
+
+    rotateX *= 0.8;
+    rotateY *= -0.8;
+
+    lastRotateX = rotateX;
+    lastRotateY = rotateY;
+    applyTransform(lastRotateX, lastRotateY, scale);
+  });
+
+  // Pinch zoom trên cảm ứng
+  let initialDistance = null;
+
+  function getDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      initialDistance = getDistance(e.touches);
     }
+  });
 
-    let lastRotateX = 0;
-    let lastRotateY = 0;
-    let scale = 1;
-
-    // Xử lý chuột trên PC
-    let lastMouseX = window.innerWidth / 2;
-    let lastMouseY = window.innerHeight / 2;
-
-    function updateFromMouse(x, y) {
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      const deltaX = (x - centerX) / centerX;
-      const deltaY = (y - centerY) / centerY;
-      lastRotateX = deltaY * 25;
-      lastRotateY = deltaX * -25;
-      applyTransform(lastRotateX, lastRotateY, scale);
-    }
-
-    document.addEventListener('mousemove', (e) => {
-      lastMouseX = e.clientX;
-      lastMouseY = e.clientY;
-      updateFromMouse(lastMouseX, lastMouseY);
-    });
-
-    // Xử lý zoom với wheel
-    document.addEventListener('wheel', (e) => {
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && initialDistance) {
       e.preventDefault();
-      const delta = -e.deltaY;
-      const zoomSpeed = 0.001;
+      const newDistance = getDistance(e.touches);
+      const delta = newDistance - initialDistance;
+      const zoomSpeed = 0.005;
       scale += delta * zoomSpeed;
       scale = Math.min(Math.max(0.5, scale), 2);
+      initialDistance = newDistance;
       applyTransform(lastRotateX, lastRotateY, scale);
-    }, { passive: false });
+    }
+  }, { passive: false });
 
-    // Xử lý nghiêng trên điện thoại (deviceorientation)
-    window.addEventListener('deviceorientation', (event) => {
-      // event.beta: nghiêng trước/sau (-180 đến 180)
-      // event.gamma: nghiêng trái/phải (-90 đến 90)
+  document.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      initialDistance = null;
+    }
+  });
 
-      // Giới hạn góc nghiêng để không bị quá lớn
-      let rotateX = event.beta || 0;  // ngang/dọc
-      let rotateY = event.gamma || 0; // trái/phải
+  // Vuốt 1 ngón để xoay trên cảm ứng
+  let lastTouchX = null;
+  let lastTouchY = null;
 
-      // Điều chỉnh góc cho hợp lý và tương tự hiệu ứng chuột
-      rotateX = Math.min(Math.max(rotateX, -30), 30);
-      rotateY = Math.min(Math.max(rotateY, -30), 30);
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
+    }
+  });
 
-      // Đảo chiều nếu muốn giống với chuột (test thử)
-      rotateX = rotateX * 0.8;  // giảm bớt độ nhạy
-      rotateY = rotateY * -0.8;
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - lastTouchX;
+      const deltaY = touch.clientY - lastTouchY;
 
-      lastRotateX = rotateX;
-      lastRotateY = rotateY;
+      lastRotateY += deltaX * 0.2;
+      lastRotateX += -deltaY * 0.2;
+
+      lastTouchX = touch.clientX;
+      lastTouchY = touch.clientY;
+
       applyTransform(lastRotateX, lastRotateY, scale);
-    });
-  </script>
-
+    }
+  }, { passive: false });
+</script>
 </body>
 </html>
