@@ -281,6 +281,17 @@
     applyTransform(lastRotateX, lastRotateY, scale);
   }
 
+  function handleTilt(clientX, clientY) {
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const deltaX = (clientX - centerX) / centerX;
+    const deltaY = (clientY - centerY) / centerY;
+    const rotateX = deltaY * 25;
+    const rotateY = deltaX * -25;
+    document.getElementById('tilt-container').style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+}
+
+
   document.addEventListener('mousemove', (e) => {
     updateFromMouse(e.clientX, e.clientY);
   });
